@@ -23,8 +23,8 @@ The pipeline consists of two main steps:
 1. **Buildkite Organization**: Ensure you have access to Buildkite hosted agents
 2. **Container Registry**: The pipeline uses `nsc workspace describe` to get registry URL
 3. **Agent Queues**: 
-   - `linux-small-default` - For building the image
-   - `linux-small-custom` - For using the custom image
+   - `linux-arm64-small-default` - For building the image
+   - `linux-arm64-small-custom` - For using the custom image
 
 ## Pipeline Steps
 
