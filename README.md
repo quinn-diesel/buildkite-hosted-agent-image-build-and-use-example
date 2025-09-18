@@ -15,8 +15,6 @@ The pipeline consists of two main steps:
 
 - `.buildkite/pipeline.yml` - Main pipeline configuration
 - `.buildkite/Dockerfile.build` - Dockerfile for the base image
-- `package.json` - Sample Node.js application
-- `src/index.js` - Sample application code
 
 ## Setup Requirements
 
