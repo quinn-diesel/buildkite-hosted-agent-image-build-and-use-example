@@ -1,0 +1,10 @@
+name: "Custom Base Image Build and Use"
+description: "Build a custom Docker image in one step and use it as the base image in the next step"
+emoji: ":docker:"
+color: "#2496ED"
+languages:
+  - "Docker"
+  - "Shell"
+steps:
+  - label: ":pipeline:"
+    command: "buildkite-agent pipeline upload"

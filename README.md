@@ -25,7 +25,7 @@ This example shows how to build a custom container image in one pipeline step, a
 
 ## Setup Instructions
 
-1. **Create Pipeline**: Connect this repo to a new Buildkite pipeline
+1. **Create Pipeline**: Connect this repo to a new Buildkite pipeline, use the "Add to Buildkite" button to make this easy.
 
 2. **Create Queues**: This configuration assumes two agent queues exist:
 
