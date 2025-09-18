@@ -1,0 +1,30 @@
+FROM node:20-slim
+
+# Install common build tools and dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    build-essential \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install global npm packages
+RUN npm install -g \
+    typescript \
+    @types/node \
+    jest \
+    eslint
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash buildkite
+USER buildkite
+WORKDIR /home/buildkite
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PATH="/home/buildkite/.local/bin:$PATH"
+
+# Default command
+CMD ["/bin/bash"]
