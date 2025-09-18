@@ -1,13 +1,13 @@
-FROM node:20-alpine
+FROM ubuntu:22.04
 
 # Add a verification file to prove this is our custom image
 RUN echo "CUSTOM_BUILDKITE_IMAGE_$(date +%s)" > /custom-image-marker
 
-# Install just git for basic functionality
-RUN apk add --no-cache git
+# Install git
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Set environment variable for verification
 ENV CUSTOM_IMAGE_BUILD=true
 
 # Default command
-CMD ["/bin/sh"]
+CMD ["/bin/bash"]

@@ -16,7 +16,7 @@ steps:
         --progress plain \
         --push .
 
-      buildkite-agent annotate --style "success" ":rocket: Image pushed to $${DOCKER_REPOSITORY} :rocket:"
+      buildkite-agent annotate --style "success" ":rocket: Image pushed to \`$${DOCKER_REPOSITORY}\` :rocket:"
 
   - key: custom_image
     label: ":package: Use custom image"
@@ -28,5 +28,5 @@ steps:
       echo "Custom image environment variable: $$CUSTOM_IMAGE_BUILD"
       echo "Custom image marker file:"
       cat /custom-image-marker
-      echo "Node.js version: $$(node --version)"
+      echo "Ubuntu version: $$(cat /etc/os-release | grep PRETTY_NAME)"
       echo "=== Verification Complete ==="
