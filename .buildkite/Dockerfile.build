@@ -1,13 +1,18 @@
 FROM ubuntu:22.04
 
-# Add a verification file to prove this is our custom image
+# Accept build number as argument
+ARG BUILDKITE_BUILD_NUMBER=unknown
+
+# Add verification files to prove this is our custom image
 RUN echo "CUSTOM_BUILDKITE_IMAGE_$(date +%s)" > /custom-image-marker
+RUN echo "BUILDKITE_BUILD_${BUILDKITE_BUILD_NUMBER}" > /build-number-marker
 
 # Install git
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-# Set environment variable for verification
+# Set environment variables for verification
 ENV CUSTOM_IMAGE_BUILD=true
+ENV BUILDKITE_BUILD_NUMBER=${BUILDKITE_BUILD_NUMBER}
 
 # Default command
 CMD ["/bin/bash"]

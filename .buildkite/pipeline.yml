@@ -11,12 +11,16 @@ steps:
       docker buildx build \
         --no-cache \
         --file .buildkite/Dockerfile.build \
+        --build-arg BUILDKITE_BUILD_NUMBER="$$BUILDKITE_BUILD_NUMBER" \
         --platform linux/amd64,linux/arm64 \
         --tag "$${DOCKER_REPOSITORY}" \
         --progress plain \
         --push .
 
-      buildkite-agent annotate --style "success" ":rocket: Image pushed to \`$${DOCKER_REPOSITORY}\` :rocket:"
+      echo "=== Image Build Complete ==="
+      echo "Build number: $$BUILDKITE_BUILD_NUMBER"
+      echo "Docker repository: $${DOCKER_REPOSITORY}"
+      buildkite-agent annotate --style "success" ":rocket: Image pushed to \`$${DOCKER_REPOSITORY}\` (Build #$$BUILDKITE_BUILD_NUMBER) :rocket:"
 
   - key: custom_image
     label: ":package: Use custom image"
@@ -25,8 +29,12 @@ steps:
       queue: linux-arm64-small-custom # a dedicated queue using the custom base image with latest tag
     command: |
       echo "=== Custom Image Verification ==="
+      echo "Current build number: $$BUILDKITE_BUILD_NUMBER"
+      echo "Image build number: $$BUILDKITE_BUILD_NUMBER"
       echo "Custom image environment variable: $$CUSTOM_IMAGE_BUILD"
       echo "Custom image marker file:"
       cat /custom-image-marker
+      echo "Build number marker file:"
+      cat /build-number-marker
       echo "Ubuntu version: $$(cat /etc/os-release | grep PRETTY_NAME)"
       echo "=== Verification Complete ==="
