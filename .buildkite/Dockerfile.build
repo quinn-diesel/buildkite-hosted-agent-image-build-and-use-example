@@ -1,11 +1,5 @@
 FROM ubuntu:22.04
 
-# Accept build number as argument
-ARG BUILDKITE_BUILD_NUMBER=unknown
-
-# Add verification file to prove this is our custom image
-RUN echo "BUILDKITE_BUILD_${BUILDKITE_BUILD_NUMBER}" > /build-number-marker
-
 # Install common CI/CD tools and dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -25,8 +19,16 @@ RUN apt-get update && \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for verification
+# Set environment variable for verification
 ENV CUSTOM_IMAGE_BUILD=true
+
+# Accept build number as argument
+ARG BUILDKITE_BUILD_NUMBER=unknown
+
+# Add verification file with build number
+RUN echo "BUILDKITE_BUILD_${BUILDKITE_BUILD_NUMBER}" > /build-number-marker
+
+# Set build-specific environment variable
 ENV BUILDKITE_BUILD_NUMBER=${BUILDKITE_BUILD_NUMBER}
 
 # Default command
