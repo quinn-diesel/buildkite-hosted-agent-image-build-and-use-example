@@ -29,7 +29,7 @@ This example shows how to build a custom container image in one pipeline step, a
 
 2. **Create Queues**: This configuration assumes two agent queues exist:
 
-   - `linux-arm64-small-default` - Configured to use the hosted agent image
+   - `linux-arm64-small-default` - Configured to use the default hosted agent image
    - `linux-arm64-small-custom` - Will be configured to use your custom built image
 
 3. **First Run**: Run the pipeline - the first step will succeed, but the second step will fail
