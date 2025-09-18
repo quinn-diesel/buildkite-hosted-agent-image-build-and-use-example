@@ -24,7 +24,9 @@ steps:
     agents:
       queue: linux-arm64-small-custom # a dedicated queue using the custom base image with latest tag
     command: |
-      echo "Running on custom base image"
-      whoami
-      node --version
-      npm --version
+      echo "=== Custom Image Verification ==="
+      echo "Custom image environment variable: $$CUSTOM_IMAGE_BUILD"
+      echo "Custom image marker file:"
+      cat /custom-image-marker
+      echo "Node.js version: $$(node --version)"
+      echo "=== Verification Complete ==="
