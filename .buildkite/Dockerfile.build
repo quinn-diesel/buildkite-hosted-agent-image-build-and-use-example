@@ -3,8 +3,7 @@ FROM ubuntu:22.04
 # Accept build number as argument
 ARG BUILDKITE_BUILD_NUMBER=unknown
 
-# Add verification files to prove this is our custom image
-RUN echo "CUSTOM_BUILDKITE_IMAGE_$(date +%s)" > /custom-image-marker
+# Add verification file to prove this is our custom image
 RUN echo "BUILDKITE_BUILD_${BUILDKITE_BUILD_NUMBER}" > /build-number-marker
 
 # Install git
