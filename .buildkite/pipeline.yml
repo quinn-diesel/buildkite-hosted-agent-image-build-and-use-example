@@ -30,6 +30,5 @@ steps:
     command: |
       echo "=== Using Custom Base Image ==="
       echo "Build #$$BUILDKITE_BUILD_NUMBER"
-      echo "Image markers:"
-      cat /custom-image-marker
+      echo "Image build number marker:"
       cat /build-number-marker
