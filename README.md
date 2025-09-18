@@ -2,73 +2,44 @@
 
 [![Add to Buildkite](https://buildkite.com/button.svg)](https://buildkite.com/new)
 
-This repository demonstrates how to build a custom Docker image in Buildkite and use it in subsequent pipeline steps with hosted agents.
+This example shows how to build a custom Docker image in one pipeline step and use it in the next step with Buildkite hosted agents.
 
-## Pipeline Overview
+## What This Does
 
-The pipeline consists of two main steps:
+**Step 1: Create Custom Base Image**
+- Builds a minimal Ubuntu image with custom verification markers
+- Includes the current build number in the image
+- Pushes to your workspace container registry
+- Shows the registry URL in an annotation
 
-1. **Build Base Image**: Creates a custom Docker image with Node.js and development tools
-2. **Use Base Image**: Runs commands using the newly built image on hosted agents
+**Step 2: Use Custom Base Image**  
+- Runs on a custom queue configured to use your built image
+- Verifies it's using the correct custom image by checking the markers
 
 ## Files
 
-- `.buildkite/pipeline.yml` - Main pipeline configuration
-- `.buildkite/Dockerfile.build` - Dockerfile for the base image
+- `.buildkite/pipeline.yml` - Pipeline with two steps
+- `.buildkite/Dockerfile.build` - Simple Ubuntu base with verification markers
 
-## Setup Requirements
+## Setup Instructions
 
-1. **Buildkite Organization**: Ensure you have access to Buildkite hosted agents
-2. **Container Registry**: The pipeline uses `nsc workspace describe` to get registry URL
-3. **Agent Queues**: 
-   - `linux-arm64-small-default` - For building the image
-   - `linux-arm64-small-custom` - For using the custom image
+1. **Create Pipeline**: Connect this repo to a new Buildkite pipeline using `.buildkite/pipeline.yml`
 
-## Pipeline Steps
+2. **Create Queues**: You need two agent queues:
+   - `linux-arm64-small-default` - Uses the default image for building
+   - `linux-arm64-small-custom` - Will use your custom image
 
-### Step 1: Build Base Image
-- Runs on the default agent queue
-- Builds a multi-platform Docker image (AMD64/ARM64)
-- Pushes to the workspace container registry
-- Adds a success annotation
+3. **First Run**: Run the pipeline - the first step will succeed, but the second step will likely fail
 
-### Step 2: Use Custom Image
-- Depends on the base image build step
-- Runs on agents using the custom image queue
-- Demonstrates that the custom tools are available
+4. **Configure Custom Queue**: After the first successful build:
+   - Look for the annotation: `🚀 Image pushed to registry.example.com/base:latest 🚀`
+   - Copy the registry URL (everything between the backticks)
+   - Go to your Buildkite organization → Queues → `linux-arm64-small-custom`
+   - Paste the registry URL into the **Image URL** field
+   - Save the queue configuration
 
-## Running the Pipeline
+5. **Run Again**: The second step should now work - it will show the custom image markers proving it's using your built image
 
-### Initial Setup
+## Adding Your Own Tools
 
-1. Connect this repository to your Buildkite pipeline
-2. Set the pipeline configuration to use `.buildkite/pipeline.yml`
-3. Trigger a build
-
-### First Run Configuration
-
-On the first run, the pipeline will build and push your custom image, but the second step may fail because the custom queue doesn't know about the new image yet.
-
-**After the first successful image build:**
-
-1. Check the build annotation from the first step - it will show something like:
-   ```
-   🚀 Image pushed to your-registry.com/base:latest 🚀
-   ```
-
-2. Copy the registry URL from this annotation (e.g., `your-registry.com/base:latest`)
-
-3. In your Buildkite organization settings:
-   - Navigate to the `linux-arm64-small-custom` queue configuration
-   - Update the **Base Image** setting to use the registry URL from the annotation
-   - Save the configuration
-
-4. Re-run the pipeline - now the second step will successfully use your custom image
-
-### Subsequent Runs
-
-Once configured, the pipeline will automatically build your custom image and use it in the next step. The custom queue will pull the latest version of your image for each build.
-
-## Customization
-
-Modify `.buildkite/Dockerfile.build` to include your specific dependencies and tools. The image will be available for use in subsequent pipeline steps.
+Edit `.buildkite/Dockerfile.build` to install whatever tools you need. The pipeline will build and use your customized image automatically.
