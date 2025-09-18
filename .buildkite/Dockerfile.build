@@ -6,8 +6,24 @@ ARG BUILDKITE_BUILD_NUMBER=unknown
 # Add verification file to prove this is our custom image
 RUN echo "BUILDKITE_BUILD_${BUILDKITE_BUILD_NUMBER}" > /build-number-marker
 
-# Install git
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install common CI/CD tools and dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        bash \
+        ca-certificates \
+        curl \
+        git \
+        gnupg-agent \
+        jq \
+        openssh-client \
+        perl \
+        python3 \
+        python3-pip \
+        rsync \
+        software-properties-common \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for verification
 ENV CUSTOM_IMAGE_BUILD=true
