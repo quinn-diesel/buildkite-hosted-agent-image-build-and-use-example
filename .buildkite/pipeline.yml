@@ -2,7 +2,7 @@ steps:
   - key: create_custom_base_image
     label: ":docker: Create custom base image"
     agents:
-      queue: linux-arm64-small-default # a dedicated queue using the default base image
+      queue: default # a dedicated queue using the default base image
     command: |
       export REGISTRY="$(nsc workspace describe -o json -k registry_url)"
       export SERVICE="base" # name of the image
@@ -26,7 +26,7 @@ steps:
     label: ":package: Use custom base image"
     depends_on: create_custom_base_image
     agents:
-      queue: linux-arm64-small-custom # a dedicated queue using the custom base image with latest tag
+      queue: default-hosted-custom # a dedicated queue using the custom base image with latest tag
     command: |
       echo "=== Using Custom Base Image ==="
       echo "Build #$$BUILDKITE_BUILD_NUMBER"
