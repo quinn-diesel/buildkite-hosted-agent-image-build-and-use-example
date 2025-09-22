@@ -8,6 +8,18 @@ steps:
       export SERVICE="base" # name of the image
       export DOCKER_REPOSITORY="$${REGISTRY}/$${SERVICE}:latest"
 
+      # Extract Buildkite organization and cluster information for the next step
+      echo "=== Extracting Buildkite Configuration ==="
+      echo "Organization Slug: $${BUILDKITE_ORGANIZATION_SLUG}"
+      echo "Cluster ID: $${BUILDKITE_CLUSTER_ID:-not available}"
+      echo "Queue: $${BUILDKITE_AGENT_META_DATA_QUEUE:-new-normal}"
+
+      # Export these values for the next step via buildkite-agent meta-data
+      buildkite-agent meta-data set "org-slug" "$${BUILDKITE_ORGANIZATION_SLUG}"
+      buildkite-agent meta-data set "cluster-id" "$${BUILDKITE_CLUSTER_ID:-}"
+      buildkite-agent meta-data set "queue-id" "$${BUILDKITE_AGENT_META_DATA_QUEUE:-new-normal}"
+      buildkite-agent meta-data set "docker-repository" "$${DOCKER_REPOSITORY}"
+
       docker buildx build \
         --no-cache \
         --file .buildkite/Dockerfile.build \
@@ -28,12 +40,17 @@ steps:
     agents:
       queue: new-normal # use the same queue as the first step
     command: |
-      export REGISTRY="$(nsc workspace describe -o json -k registry_url)"
-      export SERVICE="base" # name of the image
-      export DOCKER_REPOSITORY="$${REGISTRY}/$${SERVICE}:latest"
+      # Get values from first step's meta-data
+      export BK_ORG_SLUG="$(buildkite-agent meta-data get "org-slug")"
+      export BK_CLUSTER_ID="$(buildkite-agent meta-data get "cluster-id")"
+      export BK_QUEUE_ID="$(buildkite-agent meta-data get "queue-id")"
+      export DOCKER_REPOSITORY="$(buildkite-agent meta-data get "docker-repository")"
 
       echo "=== Updating Base Image URL ==="
       echo "Build #$BUILDKITE_BUILD_NUMBER"
+      echo "Organization Slug: $${BK_ORG_SLUG}"
+      echo "Cluster ID: $${BK_CLUSTER_ID:-not available}"
+      echo "Queue ID: $${BK_QUEUE_ID}"
       echo "Docker Repository: $${DOCKER_REPOSITORY}"
 
       # Check if Node.js is available
@@ -50,15 +67,14 @@ steps:
           exit 1
       fi
 
-      # Check required environment variables
-      if [ -z "$${BUILDKITE_ORG_SLUG:-}" ] || [ -z "$${BUILDKITE_CLUSTER_ID:-}" ] || [ -z "$${BUILDKITE_QUEUE_ID:-}" ]; then
-          echo "❌ Missing required environment variables:"
-          echo "   BUILDKITE_ORG_SLUG: $${BUILDKITE_ORG_SLUG:-not set}"
-          echo "   BUILDKITE_CLUSTER_ID: $${BUILDKITE_CLUSTER_ID:-not set}"
-          echo "   BUILDKITE_QUEUE_ID: $${BUILDKITE_QUEUE_ID:-not set}"
+      # Check required values
+      if [ -z "$${BK_ORG_SLUG:-}" ] || [ -z "$${BK_CLUSTER_ID:-}" ] || [ -z "$${BK_QUEUE_ID:-}" ]; then
+          echo "❌ Missing required values from first step:"
+          echo "   Organization Slug: $${BK_ORG_SLUG:-not set}"
+          echo "   Cluster ID: $${BK_CLUSTER_ID:-not set}"
+          echo "   Queue ID: $${BK_QUEUE_ID:-not set}"
           echo ""
-          echo "ℹ️  Please set these environment variables in your Buildkite pipeline settings"
-          echo "   or temporarily skipping this step will allow the pipeline to continue."
+          echo "ℹ️  The first step should have set these values via meta-data"
 
           # Option to skip or fail
           if [ "$${SKIP_BASE_IMAGE_UPDATE:-false}" = "true" ]; then
@@ -72,7 +88,7 @@ steps:
 
       # Run the update_base_image.js script
       echo "🔄 Running base image update script..."
-      node update_base_image.js "$${BUILDKITE_ORG_SLUG}" "$${BUILDKITE_CLUSTER_ID}" "$${BUILDKITE_QUEUE_ID}" "$${DOCKER_REPOSITORY}"
+      node update_base_image.js "$${BK_ORG_SLUG}" "$${BK_CLUSTER_ID}" "$${BK_QUEUE_ID}" "$${DOCKER_REPOSITORY}"
 
       buildkite-agent annotate --style "info" ":link: Base image URL updated to \`$${DOCKER_REPOSITORY}\`"
 
