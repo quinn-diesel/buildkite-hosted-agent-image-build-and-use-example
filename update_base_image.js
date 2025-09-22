@@ -36,6 +36,7 @@ class BuildkiteImageUpdater {
     async updateBaseImageUrl(orgSlug, clusterId, queueId, imageUrl) {
         try {
             console.log('🚀 Starting base image URL update via GraphQL API...');
+            console.log('📦 Script Version: 2.0 (GraphQL API)');
             console.log(`Organization: ${orgSlug}`);
             console.log(`Cluster ID: ${clusterId}`);
             console.log(`Queue ID: ${queueId}`);

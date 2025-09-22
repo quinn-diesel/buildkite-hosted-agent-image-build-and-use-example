@@ -88,6 +88,14 @@ steps:
 
       echo "📍 Using script path: $${SCRIPT_PATH}"
 
+      # Show file info and contents to debug caching issues
+      echo "🔍 File info:"
+      ls -la "$${SCRIPT_PATH}"
+      echo ""
+      echo "📄 First 10 lines of script:"
+      head -10 "$${SCRIPT_PATH}"
+      echo ""
+
       # Check required values from first step
       if [ -z "$${BK_ORG_SLUG:-}" ] || [ -z "$${BK_CLUSTER_ID:-}" ] || [ -z "$${BK_QUEUE_ID:-}" ]; then
           echo "❌ Missing required values from first step:"
