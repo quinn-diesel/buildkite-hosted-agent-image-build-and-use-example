@@ -88,7 +88,7 @@ steps:
 
       echo "📍 Using script path: $${SCRIPT_PATH}"
 
-      # Check required values
+      # Check required values from first step
       if [ -z "$${BK_ORG_SLUG:-}" ] || [ -z "$${BK_CLUSTER_ID:-}" ] || [ -z "$${BK_QUEUE_ID:-}" ]; then
           echo "❌ Missing required values from first step:"
           echo "   Organization Slug: $${BK_ORG_SLUG:-not set}"
@@ -106,6 +106,29 @@ steps:
               exit 1
           fi
       fi
+
+      # Check for API token (required for GraphQL authentication)
+      if [ -z "$${BUILDKITE_API_TOKEN:-}" ]; then
+          echo "❌ Missing BUILDKITE_API_TOKEN environment variable"
+          echo ""
+          echo "ℹ️  To use the GraphQL API, you need to set BUILDKITE_API_TOKEN with a token that has:"
+          echo "   - GraphQL scope enabled"
+          echo "   - Write Clusters (write_clusters) permission"
+          echo ""
+          echo "   You can create a token at: https://buildkite.com/user/api-access-tokens"
+
+          # Option to skip or fail
+          if [ "$${SKIP_BASE_IMAGE_UPDATE:-false}" = "true" ]; then
+              echo "⏭️  Skipping base image update (SKIP_BASE_IMAGE_UPDATE=true)"
+              exit 0
+          else
+              echo "💡 Set SKIP_BASE_IMAGE_UPDATE=true to skip this step temporarily"
+              exit 1
+          fi
+      fi
+
+      # Mask the token in logs for security
+      echo "✓ BUILDKITE_API_TOKEN is set (token: bkua_***$(echo "$${BUILDKITE_API_TOKEN}" | tail -c 5))"
 
       # Run the update_base_image.js script
       echo "🔄 Running base image update script..."

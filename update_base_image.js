@@ -4,7 +4,7 @@
  * Buildkite Base Image URL Update Script
  *
  * This script updates the base image URL for a cluster queue using the
- * Buildkite web interface API endpoint.
+ * Buildkite GraphQL API with token authentication.
  *
  * Usage:
  *   node update_base_image_url.js <org_slug> <cluster_id> <queue_id> <image_url>
@@ -13,38 +13,41 @@
  *   node update_base_image_url.js my-org cluster-123 queue-456 "my-registry.com/my-image:latest"
  *
  * Prerequisites:
- * - You must be logged into Buildkite in your browser
+ * - Set BUILDKITE_API_TOKEN environment variable with a token that has:
+ *   - GraphQL scope enabled
+ *   - Write Clusters (write_clusters) permission
  * - You must have manage_cluster permission for the specified cluster
- * - The script will attempt to extract CSRF token from your browser session
  */
 
 const https = require('https');
 const { URL } = require('url');
 
 // Configuration
-const BUILDKITE_BASE_URL = 'https://buildkite.com';
+const BUILDKITE_GRAPHQL_API_URL = 'https://graphql.buildkite.com/v1';
 
 class BuildkiteImageUpdater {
     constructor() {
-        this.csrfToken = null;
-        this.sessionCookies = null;
+        this.apiToken = process.env.BUILDKITE_API_TOKEN;
+        if (!this.apiToken) {
+            throw new Error('BUILDKITE_API_TOKEN environment variable is required');
+        }
     }
 
     async updateBaseImageUrl(orgSlug, clusterId, queueId, imageUrl) {
         try {
-            console.log('🚀 Starting base image URL update...');
+            console.log('🚀 Starting base image URL update via GraphQL API...');
             console.log(`Organization: ${orgSlug}`);
             console.log(`Cluster ID: ${clusterId}`);
             console.log(`Queue ID: ${queueId}`);
             console.log(`Image URL: ${imageUrl}`);
 
-            // Step 1: Get CSRF token and session cookies
-            console.log('\n📋 Step 1: Getting CSRF token and session...');
-            await this.getSessionData(orgSlug, clusterId, queueId);
+            // Step 1: Get organization ID
+            console.log('\n📋 Step 1: Getting organization ID...');
+            const organizationId = await this.getOrganizationId(orgSlug);
 
-            // Step 2: Make the PATCH request
-            console.log('\n🔄 Step 2: Updating base image URL...');
-            await this.makeUpdateRequest(orgSlug, clusterId, queueId, imageUrl);
+            // Step 2: Update cluster queue with new base image
+            console.log('\n🔄 Step 2: Updating base image URL via GraphQL...');
+            await this.updateClusterQueue(organizationId, queueId, imageUrl);
 
             console.log('\n✅ Base image URL updated successfully!');
 
@@ -54,91 +57,97 @@ class BuildkiteImageUpdater {
         }
     }
 
-    async getSessionData(orgSlug, clusterId, queueId) {
-        return new Promise((resolve, reject) => {
-            const baseImageUrl = `${BUILDKITE_BASE_URL}/${orgSlug}/clusters/${clusterId}/queues/${queueId}/base_image`;
-            const url = new URL(baseImageUrl);
-
-            const options = {
-                hostname: url.hostname,
-                port: url.port || 443,
-                path: url.pathname + url.search,
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Buildkite-Image-Updater/1.0',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1'
+    async getOrganizationId(orgSlug) {
+        const query = `
+            query GetOrganization($slug: ID!) {
+                organization(slug: $slug) {
+                    id
+                    name
+                    slug
                 }
-            };
+            }
+        `;
 
-            const req = https.request(options, (res) => {
-                let data = '';
+        const variables = { slug: orgSlug };
+        const response = await this.makeGraphQLRequest(query, variables);
 
-                // Collect cookies from response headers
-                const cookies = res.headers['set-cookie'];
-                if (cookies) {
-                    this.sessionCookies = cookies.map(cookie => cookie.split(';')[0]).join('; ');
-                }
+        if (!response.data?.organization) {
+            throw new Error(`Organization "${orgSlug}" not found or not accessible`);
+        }
 
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                res.on('end', () => {
-                    // Extract CSRF token from the HTML
-                    const csrfMatch = data.match(/name="authenticity_token"[^>]*value="([^"]+)"/);
-                    if (csrfMatch) {
-                        this.csrfToken = csrfMatch[1];
-                        console.log('✓ CSRF token extracted');
-                        resolve();
-                    } else {
-                        reject(new Error('Could not find CSRF token. Make sure you are logged into Buildkite and have access to this cluster queue.'));
-                    }
-                });
-            });
-
-            req.on('error', (error) => {
-                reject(new Error(`Failed to get session data: ${error.message}`));
-            });
-
-            req.end();
-        });
+        console.log(`✓ Found organization: ${response.data.organization.name} (${response.data.organization.id})`);
+        return response.data.organization.id;
     }
 
-    async makeUpdateRequest(orgSlug, clusterId, queueId, imageUrl) {
+    async updateClusterQueue(organizationId, queueId, imageUrl) {
+        const mutation = `
+            mutation UpdateClusterQueue($organizationId: ID!, $queueId: ID!, $imageUrl: String!) {
+                clusterQueueUpdate(input: {
+                    organizationId: $organizationId
+                    id: $queueId
+                    hostedAgents: {
+                        platformSettings: {
+                            linux: {
+                                agentImageRef: $imageUrl
+                            }
+                        }
+                    }
+                }) {
+                    clusterQueue {
+                        id
+                        name
+                        hostedAgents {
+                            platformSettings {
+                                linux {
+                                    agentImageRef
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+
+        const variables = {
+            organizationId: organizationId,
+            queueId: queueId,
+            imageUrl: imageUrl
+        };
+
+        const response = await this.makeGraphQLRequest(mutation, variables);
+
+        if (response.errors && response.errors.length > 0) {
+            throw new Error(`GraphQL errors: ${response.errors.map(e => e.message).join(', ')}`);
+        }
+
+        if (!response.data?.clusterQueueUpdate?.clusterQueue) {
+            throw new Error('Failed to update cluster queue - no data returned');
+        }
+
+        const updatedQueue = response.data.clusterQueueUpdate.clusterQueue;
+        const newImageRef = updatedQueue.hostedAgents?.platformSettings?.linux?.agentImageRef;
+
+        console.log(`✓ Successfully updated queue "${updatedQueue.name}" (${updatedQueue.id})`);
+        console.log(`✓ New agent image reference: ${newImageRef || 'Not set'}`);
+
+        return updatedQueue;
+    }
+
+    async makeGraphQLRequest(query, variables = {}) {
         return new Promise((resolve, reject) => {
-            const updateUrl = `${BUILDKITE_BASE_URL}/${orgSlug}/clusters/${clusterId}/queues/${queueId}/update_base_image_profile`;
-            const url = new URL(updateUrl);
-
-            // Prepare form data
-            const formData = new URLSearchParams({
-                'authenticity_token': this.csrfToken,
-                'cluster_queue[namespace_base_image_profile_id]': '', // Clear the dropdown selection
-                'cluster_queue[namespace_base_image_ref]': imageUrl,  // Set the custom URL
-                'commit': 'Save settings'
-            });
-
-            const postData = formData.toString();
+            const url = new URL(BUILDKITE_GRAPHQL_API_URL);
+            const postData = JSON.stringify({ query, variables });
 
             const options = {
                 hostname: url.hostname,
                 port: url.port || 443,
                 path: url.pathname,
-                method: 'PATCH',
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(postData),
-                    'User-Agent': 'Buildkite-Image-Updater/1.0',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Cookie': this.sessionCookies || '',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Authorization': `Bearer ${this.apiToken}`,
+                    'User-Agent': 'Buildkite-Image-Updater/2.0'
                 }
             };
 
@@ -150,27 +159,21 @@ class BuildkiteImageUpdater {
                 });
 
                 res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 400) {
-                        console.log(`✓ Request completed with status: ${res.statusCode}`);
-
-                        // Check if there's a success message in the response
-                        if (responseData.includes('Agent image has been updated') ||
-                            responseData.includes('success') ||
-                            res.statusCode === 302) { // Redirect indicates success
-                            resolve();
-                        } else if (responseData.includes('error') || responseData.includes('could not be updated')) {
-                            reject(new Error('Server returned an error in the response'));
-                        } else {
-                            resolve(); // Assume success for redirects and other 2xx responses
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            const jsonResponse = JSON.parse(responseData);
+                            resolve(jsonResponse);
+                        } catch (parseError) {
+                            reject(new Error(`Failed to parse GraphQL response: ${parseError.message}`));
                         }
                     } else {
-                        reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+                        reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}\nResponse: ${responseData}`));
                     }
                 });
             });
 
             req.on('error', (error) => {
-                reject(new Error(`Request failed: ${error.message}`));
+                reject(new Error(`GraphQL request failed: ${error.message}`));
             });
 
             req.write(postData);
@@ -190,7 +193,9 @@ async function main() {
         console.log('  node update_base_image_url.js my-org cluster-123 queue-456 "my-registry.com/my-image:latest"');
         console.log('');
         console.log('Prerequisites:');
-        console.log('  - You must be logged into Buildkite in your browser');
+        console.log('  - Set BUILDKITE_API_TOKEN environment variable with a token that has:');
+        console.log('    * GraphQL scope enabled');
+        console.log('    * Write Clusters (write_clusters) permission');
         console.log('  - You must have manage_cluster permission for the specified cluster');
         process.exit(1);
     }
