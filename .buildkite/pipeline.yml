@@ -22,9 +22,30 @@ steps:
       echo "Repository: $${DOCKER_REPOSITORY}"
       buildkite-agent annotate --style "success" ":rocket: Image pushed to \`$${DOCKER_REPOSITORY}\`"
 
+  - key: update_base_image
+    label: ":gear: Update base image URL"
+    depends_on: create_custom_base_image
+    agents:
+      queue: new-normal # use the same queue as the first step
+    command: |
+      export REGISTRY="$(nsc workspace describe -o json -k registry_url)"
+      export SERVICE="base" # name of the image
+      export DOCKER_REPOSITORY="$${REGISTRY}/$${SERVICE}:latest"
+
+      echo "=== Updating Base Image URL ==="
+      echo "Build #$BUILDKITE_BUILD_NUMBER"
+      echo "Docker Repository: $${DOCKER_REPOSITORY}"
+
+      # Run the update_base_image.js script
+      # Note: You'll need to set these environment variables with your actual values:
+      # BUILDKITE_ORG_SLUG, BUILDKITE_CLUSTER_ID, BUILDKITE_QUEUE_ID
+      node update_base_image.js "$${BUILDKITE_ORG_SLUG:-your-org}" "$${BUILDKITE_CLUSTER_ID:-your-cluster-id}" "$${BUILDKITE_QUEUE_ID:-your-queue-id}" "$${DOCKER_REPOSITORY}"
+
+      buildkite-agent annotate --style "info" ":link: Base image URL updated to \`$${DOCKER_REPOSITORY}\`"
+
   - key: use_custom_base_image
     label: ":package: Use custom base image"
-    depends_on: create_custom_base_image
+    depends_on: update_base_image
     agents:
       queue: default-hosted-custom # a dedicated queue using the custom base image with latest tag
     command: |
