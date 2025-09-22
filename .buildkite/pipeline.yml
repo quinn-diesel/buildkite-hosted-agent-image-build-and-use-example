@@ -1,10 +1,8 @@
-name: "new normal"
-
 steps:
   - key: create_custom_base_image
     label: ":docker: Create custom base image"
     agents:
-      queue: default # a dedicated queue using the default base image
+      queue: new-normal # a dedicated queue using the default base image
     command: |
       export REGISTRY="$(nsc workspace describe -o json -k registry_url)"
       export SERVICE="base" # name of the image
