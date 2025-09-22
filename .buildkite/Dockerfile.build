@@ -10,6 +10,8 @@ RUN apt-get update && \
         git \
         gnupg-agent \
         jq \
+        nodejs \
+        npm \
         openssh-client \
         perl \
         python3 \

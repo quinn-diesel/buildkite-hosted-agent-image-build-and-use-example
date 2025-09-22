@@ -36,10 +36,43 @@ steps:
       echo "Build #$BUILDKITE_BUILD_NUMBER"
       echo "Docker Repository: $${DOCKER_REPOSITORY}"
 
+      # Check if Node.js is available
+      if ! command -v node &> /dev/null; then
+          echo "❌ Node.js not found. Installing..."
+          curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+          apt-get install -y nodejs
+      fi
+
+      # Verify the update_base_image.js file exists
+      if [ ! -f "update_base_image.js" ]; then
+          echo "❌ update_base_image.js not found in current directory"
+          ls -la
+          exit 1
+      fi
+
+      # Check required environment variables
+      if [ -z "$${BUILDKITE_ORG_SLUG:-}" ] || [ -z "$${BUILDKITE_CLUSTER_ID:-}" ] || [ -z "$${BUILDKITE_QUEUE_ID:-}" ]; then
+          echo "❌ Missing required environment variables:"
+          echo "   BUILDKITE_ORG_SLUG: $${BUILDKITE_ORG_SLUG:-not set}"
+          echo "   BUILDKITE_CLUSTER_ID: $${BUILDKITE_CLUSTER_ID:-not set}"
+          echo "   BUILDKITE_QUEUE_ID: $${BUILDKITE_QUEUE_ID:-not set}"
+          echo ""
+          echo "ℹ️  Please set these environment variables in your Buildkite pipeline settings"
+          echo "   or temporarily skipping this step will allow the pipeline to continue."
+
+          # Option to skip or fail
+          if [ "$${SKIP_BASE_IMAGE_UPDATE:-false}" = "true" ]; then
+              echo "⏭️  Skipping base image update (SKIP_BASE_IMAGE_UPDATE=true)"
+              exit 0
+          else
+              echo "💡 Set SKIP_BASE_IMAGE_UPDATE=true to skip this step temporarily"
+              exit 1
+          fi
+      fi
+
       # Run the update_base_image.js script
-      # Note: You'll need to set these environment variables with your actual values:
-      # BUILDKITE_ORG_SLUG, BUILDKITE_CLUSTER_ID, BUILDKITE_QUEUE_ID
-      node update_base_image.js "$${BUILDKITE_ORG_SLUG:-your-org}" "$${BUILDKITE_CLUSTER_ID:-your-cluster-id}" "$${BUILDKITE_QUEUE_ID:-your-queue-id}" "$${DOCKER_REPOSITORY}"
+      echo "🔄 Running base image update script..."
+      node update_base_image.js "$${BUILDKITE_ORG_SLUG}" "$${BUILDKITE_CLUSTER_ID}" "$${BUILDKITE_QUEUE_ID}" "$${DOCKER_REPOSITORY}"
 
       buildkite-agent annotate --style "info" ":link: Base image URL updated to \`$${DOCKER_REPOSITORY}\`"
 
