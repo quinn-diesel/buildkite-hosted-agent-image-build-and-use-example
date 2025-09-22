@@ -18,7 +18,7 @@ steps:
         --push .
 
       echo "=== Custom Base Image Created ==="
-      echo "Build #$$BUILDKITE_BUILD_NUMBER"
+      echo "Build #$BUILDKITE_BUILD_NUMBER"
       echo "Repository: $${DOCKER_REPOSITORY}"
       buildkite-agent annotate --style "success" ":rocket: Image pushed to \`$${DOCKER_REPOSITORY}\`"
 
@@ -29,6 +29,6 @@ steps:
       queue: default-hosted-custom # a dedicated queue using the custom base image with latest tag
     command: |
       echo "=== Using Custom Base Image ==="
-      echo "Build #$$BUILDKITE_BUILD_NUMBER"
+      echo "Build #$BUILDKITE_BUILD_NUMBER"
       echo "Image build number marker:"
       cat /build-number-marker
