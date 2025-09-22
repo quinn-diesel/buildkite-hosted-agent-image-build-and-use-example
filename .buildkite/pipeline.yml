@@ -60,12 +60,33 @@ steps:
           apt-get install -y nodejs
       fi
 
-      # Verify the update_base_image.js file exists
-      if [ ! -f "update_base_image.js" ]; then
-          echo "❌ update_base_image.js not found in current directory"
-          ls -la
+      # Debug: Show current working directory and files
+      echo "🔍 Current working directory: $(pwd)"
+      echo "📁 Files in current directory:"
+      ls -la
+
+      # Check for update_base_image.js in multiple locations
+      SCRIPT_PATH=""
+      if [ -f "update_base_image.js" ]; then
+          SCRIPT_PATH="update_base_image.js"
+          echo "✅ Found update_base_image.js in current directory"
+      elif [ -f "./update_base_image.js" ]; then
+          SCRIPT_PATH="./update_base_image.js"
+          echo "✅ Found update_base_image.js with ./ prefix"
+      elif [ -f "$${BUILDKITE_BUILD_CHECKOUT_PATH}/update_base_image.js" ]; then
+          SCRIPT_PATH="$${BUILDKITE_BUILD_CHECKOUT_PATH}/update_base_image.js"
+          echo "✅ Found update_base_image.js in checkout path"
+      else
+          echo "❌ update_base_image.js not found in any expected location:"
+          echo "   - $(pwd)/update_base_image.js"
+          echo "   - $${BUILDKITE_BUILD_CHECKOUT_PATH:-undefined}/update_base_image.js"
+          echo ""
+          echo "🔍 Let's check the entire directory structure:"
+          find . -name "update_base_image.js" -type f 2>/dev/null || echo "No update_base_image.js found anywhere"
           exit 1
       fi
+
+      echo "📍 Using script path: $${SCRIPT_PATH}"
 
       # Check required values
       if [ -z "$${BK_ORG_SLUG:-}" ] || [ -z "$${BK_CLUSTER_ID:-}" ] || [ -z "$${BK_QUEUE_ID:-}" ]; then
@@ -88,7 +109,7 @@ steps:
 
       # Run the update_base_image.js script
       echo "🔄 Running base image update script..."
-      node update_base_image.js "$${BK_ORG_SLUG}" "$${BK_CLUSTER_ID}" "$${BK_QUEUE_ID}" "$${DOCKER_REPOSITORY}"
+      node "$${SCRIPT_PATH}" "$${BK_ORG_SLUG}" "$${BK_CLUSTER_ID}" "$${BK_QUEUE_ID}" "$${DOCKER_REPOSITORY}"
 
       buildkite-agent annotate --style "info" ":link: Base image URL updated to \`$${DOCKER_REPOSITORY}\`"
 
